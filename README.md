@@ -1,2 +1,2 @@
 # ERP_application
- A little project on a ERP (r Enterprise Resource Planning) application.
+ A little project on a ERP (Enterprise Resource Planning) application.
