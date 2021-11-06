@@ -10,3 +10,6 @@ To launch the project (where the *docker-compose.yml* file is)
 
 Project only in local network
 > http://localhost:8000/
+
+Access PHPMyAdmin (username : root, password : MYSQL_ROOT_PASSWORD)
+> http://localhost:8080/
