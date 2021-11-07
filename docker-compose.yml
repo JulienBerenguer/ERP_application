@@ -22,7 +22,26 @@ services:
             MYSQL_PASSWORD: MYSQL_PASSWORD
         ports:
             - "9906:3306"
+        volumes:
+            #- type: volume
+              #source: ./volume/mysqldata
+              #target: /var/lib/mysql
+              #volume:
+                #nocopy: true
+            - type: bind
+              source: ./bind/mysqldata
+              target: /var/lib/mysql
+            #- type: volume
+            #  source: mysqldata
+            #  target: /var/lib/mysql
+            #  volume:
+            #    nocopy: true
+            #- type: bind
+            #  source: ./static
+            #  target: /opt/app/static
+
     phpmyadmin:
+        container_name: phpmyadmin
         image: phpmyadmin/phpmyadmin
         ports:
             - '8080:80'
@@ -31,3 +50,7 @@ services:
             PMA_HOST: db
         depends_on:
             - db
+#volumes:
+    #mysqldata:
+        #name: mysqldata
+        #external: true
