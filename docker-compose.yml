@@ -1,27 +1,48 @@
 version: '3.8'
 services:
-    php-apache-environment:
-        container_name: php-apache
+    # PHP - Phalcon
+    php-phalcon-environment:
+        container_name: php-phalcon
         build:
-            context: ./php
+            context: ./php-phalcon
             dockerfile: Dockerfile
+        working_dir: /var/www/html
+        volumes:
+            - ./php-phalcon/src:/var/www/html
+        ports:
+            - '8000:80'
+        expose:
+            - '8000'
         depends_on:
             - db
-        volumes:
-            - ./php/src:/var/www/html/
-        ports:
-            - 8000:80
+        links:
+            - db
+    
+    # PHP - Apache
+    #php-apache-environment:
+    #    container_name: php-apache
+    #    build:
+    #        context: ./php
+    #        dockerfile: Dockerfile
+    #    depends_on:
+    #        - db
+    #    volumes:
+    #        - ./php/src:/var/www/html/
+    #    ports:
+    #        - 8000:80
+
+    # Database
     db:
-        container_name: db
+        container_name: mysql
         image: mysql
         restart: always
         environment:
-            MYSQL_ROOT_PASSWORD: MYSQL_ROOT_PASSWORD
-            MYSQL_DATABASE: MYSQL_DATABASE
-            MYSQL_USER: MYSQL_USER
-            MYSQL_PASSWORD: MYSQL_PASSWORD
+            MYSQL_ROOT_PASSWORD: admin
+            MYSQL_DATABASE: ERP
+            MYSQL_USER: user
+            MYSQL_PASSWORD: user
         ports:
-            - "9906:3306"
+            - '9906:3306'
             
         # Bind data (like mounted volume)
         volumes:
@@ -59,9 +80,10 @@ services:
             #  source: ./static
             #  target: /opt/app/static
 
+    # Database editor
     phpmyadmin:
         container_name: phpmyadmin
-        image: phpmyadmin/phpmyadmin
+        image: phpmyadmin
         ports:
             - '8080:80'
         restart: always
