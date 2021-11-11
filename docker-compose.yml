@@ -22,15 +22,34 @@ services:
             MYSQL_PASSWORD: MYSQL_PASSWORD
         ports:
             - "9906:3306"
+            
+        # Bind data (like mounted volume)
         volumes:
-            #- type: volume
-              #source: ./volume/mysqldata
-              #target: /var/lib/mysql
-              #volume:
-                #nocopy: true
             - type: bind
               source: ./bind/mysqldata
               target: /var/lib/mysql
+
+        # Init the db
+        #volumes:
+        #    - ./sql:/docker-entrypoint-initdb.d
+
+        # Copy data in volume
+        #volumes:
+        #    - type: volume
+        #      source: mysqldata
+        #      target: /var/lib/mysql
+
+        # Copy data in mounted volume
+        #volumes:
+            #- ./volume/mysqldata:/var/lib/mysql
+
+            #- type: volume
+            #  source: ./volume/mysqldata
+            #  target: /var/lib/mysql
+            #  volume:
+            #    nocopy: true
+
+        # Data
             #- type: volume
             #  source: mysqldata
             #  target: /var/lib/mysql
@@ -50,7 +69,8 @@ services:
             PMA_HOST: db
         depends_on:
             - db
+# For volumes
 #volumes:
-    #mysqldata:
-        #name: mysqldata
-        #external: true
+#    mysqldata:
+#        name: mysqldata
+#        #external: true
