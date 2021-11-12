@@ -147,6 +147,7 @@ CREATE VIEW V_Company AS
         * 
     FROM 
         Company
+    ORDER BY idCompany
 ;
 
 
@@ -162,6 +163,7 @@ CREATE VIEW V_Product AS
         stock 
     FROM 
         Product
+    ORDER BY idProduct
 ;
 
 -- Provider
@@ -176,6 +178,7 @@ CREATE VIEW V_Provider AS
         Market
     WHERE
         type = 'Provider'
+    ORDER BY idMarket
 ;
 
 -- Client
@@ -190,6 +193,7 @@ CREATE VIEW V_Client AS
         Market
     WHERE
         type = 'Client'
+    ORDER BY idMarket
 ;
 
 -- Employee
@@ -199,6 +203,7 @@ CREATE VIEW V_Employee AS
         * 
     FROM 
         Employee
+    ORDER BY idEmployee
 ;
 
 DROP VIEW IF EXISTS V_Employee_Detailled;
@@ -216,6 +221,7 @@ CREATE VIEW V_Employee_Detailled AS
         Company C
     ON 
         E.idCompany = C.idCompany
+    ORDER BY E.idEmployee
 ;
 
 
@@ -226,6 +232,7 @@ CREATE VIEW V_Transaction AS
         *
     FROM 
         Transaction
+    ORDER BY idTransaction
 ;
 
 DROP VIEW IF EXISTS V_Transaction_Detailled;
@@ -256,6 +263,7 @@ CREATE VIEW V_Transaction_Detailled AS
         Product P
     ON 
         T.idProduct = P.idProduct
+    ORDER BY T.idTransaction
 ;
 
 
@@ -270,11 +278,13 @@ CREATE VIEW V_Transaction_Detailled AS
 DROP PROCEDURE IF EXISTS P_Market;
 CREATE PROCEDURE P_Market(
 	IN  _idMarket INT,
-	OUT type TEXT        -- If an transaction can be made
+	OUT MarketType TEXT        -- If an transaction can be made
 )
 
     SELECT 
         type
+    INTO
+        MarketType
     FROM 
         Market
     WHERE
@@ -306,7 +316,7 @@ BEGIN
                 SELECT 
                     TotalPrice
                 FROM 
-                    Product P
+                    V_Product P
                 WHERE 
                     P.idProduct = _idProduct
             )
@@ -361,7 +371,9 @@ CREATE PROCEDURE P_CanMakeTransaction(
 )
 
 	SELECT 
-        COUNT(*)
+        COUNT(*) 
+    INTO 
+        CanMakeTransaction
     FROM 
         Company C
     INNER JOIN
@@ -387,28 +399,24 @@ CREATE PROCEDURE P_MakeTransaction (
 	IN  _idMarket INT,
 	IN  _idEmployee INT,
 	IN  _idProduct INT,
-	IN  _quantity INT,
-	OUT MakeTransaction INT        -- If the transaction worked
+	IN  _quantity INT
 )
 BEGIN
-    /*DECLARE @CanMakeTransaction INT
-    DECLARE @type TEXT
-    DECLARE @CanBuy INT
-    DECLARE @CanSell INT*/
+    SET FOREIGN_KEY_CHECKS = OFF;
 
     CALL P_CanMakeTransaction(_idCompany, _idMarket, _idEmployee, _idProduct, @CanMakeTransaction);
-    CALL P_Market(_idMarket, @type);
+    CALL P_Market(_idMarket, @MarketType);
     CALL P_CanBuy(_idCompany, _idProduct, @CanBuy);
     CALL P_CanSell(_idProduct, _quantity, @CanSell);
 
 	CASE   
         -- If the values selected are correct
-        WHEN (SELECT @CanMakeTransaction <> 0) AND (quantity > 0) THEN 
+        WHEN (SELECT @CanMakeTransaction <> 0) AND (_quantity > 0) THEN 
             BEGIN
                 -- If it's a client or a provider
                 CASE
                     -- Provider, we add the product
-                    WHEN (SELECT @type = 'Provider') AND (SELECT @CanBuy = 0) THEN
+                    WHEN (SELECT @MarketType = 'Provider') AND (SELECT @CanBuy = 0) THEN
                         -- Balance
                         UPDATE 
                             Company C
@@ -423,7 +431,98 @@ BEGIN
 
                         -- Stock
                         UPDATE 
+                            Product P
+                        SET 
+                            P.stock = P.stock + _quantity
+                        WHERE 
+                            P.idProduct = _idProduct;
+
+                        -- Transaction
+                        INSERT INTO `Transaction` (idCompany, idMarket, idEmployee, idProduct, quantity) 
+                        VALUES
+                            (_idCompany, _idMarket, _idEmployee, _idProduct, _quantity);
+                    -- Client, we substract the product
+                    WHEN (SELECT @MarketType = 'Client') AND (SELECT @CanSell = 0) THEN
+                         -- Balance
+                        UPDATE 
+                            Company C
+                        INNER JOIN 
                             V_Product P
+                        ON 
+                            P.idProduct = _idProduct
+                        SET 
+                            C.balance = C.balance + P.TotalPrice
+                        WHERE 
+                            idCompany = _idCompany;
+
+                        -- Stock
+                        UPDATE 
+                            Product P
+                        SET 
+                            P.stock = P.stock - _quantity
+                        WHERE 
+                            P.idProduct = _idProduct;
+
+                        -- Transaction
+                        INSERT INTO `Transaction` (idCompany, idMarket, idEmployee, idProduct, quantity) 
+                        VALUES
+                            (_idCompany, _idMarket, _idEmployee, _idProduct, _quantity);
+                    -- Neither client nor provider
+                END CASE;
+            END;
+    END CASE;
+    SET FOREIGN_KEY_CHECKS = ON;
+END$$
+
+
+
+-- With output => don't work with a call from php
+/*
+DROP PROCEDURE IF EXISTS P_MakeTransaction;
+DELIMITER $$
+CREATE PROCEDURE P_MakeTransaction (
+	IN  _idCompany INT,
+	IN  _idMarket INT,
+	IN  _idEmployee INT,
+	IN  _idProduct INT,
+	IN  _quantity INT,
+	OUT MakeTransaction INT        -- If the transaction worked
+)
+BEGIN
+    --DECLARE @CanMakeTransaction INT
+    --DECLARE @type TEXT
+    --DECLARE @CanBuy INT
+    --DECLARE @CanSell INT
+    SET FOREIGN_KEY_CHECKS = OFF;
+
+    CALL P_CanMakeTransaction(_idCompany, _idMarket, _idEmployee, _idProduct, @CanMakeTransaction);
+    CALL P_Market(_idMarket, @MarketType);
+    CALL P_CanBuy(_idCompany, _idProduct, @CanBuy);
+    CALL P_CanSell(_idProduct, _quantity, @CanSell);
+
+	CASE   
+        -- If the values selected are correct
+        WHEN (SELECT @CanMakeTransaction <> 0) AND (_quantity > 0) THEN 
+            BEGIN
+                -- If it's a client or a provider
+                CASE
+                    -- Provider, we add the product
+                    WHEN (SELECT @MarketType = 'Provider') AND (SELECT @CanBuy = 0) THEN
+                        -- Balance
+                        UPDATE 
+                            Company C
+                        INNER JOIN 
+                            V_Product P
+                        ON 
+                            P.idProduct = _idProduct
+                        SET 
+                            C.balance = C.balance - P.TotalPrice
+                        WHERE 
+                            idCompany = _idCompany;
+
+                        -- Stock
+                        UPDATE 
+                            Product P
                         SET 
                             P.stock = P.stock + _quantity
                         WHERE 
@@ -436,7 +535,7 @@ BEGIN
 
                         SET MakeTransaction = 0;    -- Return a good execution
                     -- Client, we substract the product
-                    WHEN (SELECT @type = 'Client') AND (SELECT @CanSell = 0) THEN
+                    WHEN (SELECT @MarketType = 'Client') AND (SELECT @CanSell = 0) THEN
                          -- Balance
                         UPDATE 
                             Company C
@@ -473,4 +572,6 @@ BEGIN
         ELSE 
             SET MakeTransaction = 1;        -- Return a bad execution
     END CASE;
+    SET FOREIGN_KEY_CHECKS = ON;
 END$$
+*/
