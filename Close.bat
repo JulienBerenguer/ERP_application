@@ -1,4 +1,4 @@
 :: Compress Phalcon files
-tar -cf ./php-phalcon/src.zip -C ./php-phalcon/src/
+tar -czf ./php-phalcon/src.zip ./php-phalcon/src
 :: Compress DB data
-tar -cf ./bind/mysqldata.zip -C ./bind/mysqldata/
+tar -czf ./bind/mysqldata.zip ./bind/mysqldata
